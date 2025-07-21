@@ -49,8 +49,12 @@ class App {
 
     // CORS配置
     this.app.use(cors({
-      origin: config.NODE_ENV === 'production' 
-        ? ['https://yourdomain.com'] // 生产环境域名
+      origin: config.NODE_ENV === 'production'
+        ? [
+            'https://shuqian.vercel.app',
+            'https://shuqian-git-master-simpleseeks-projects.vercel.app',
+            /\.vercel\.app$/
+          ]
         : ['http://localhost:3000', 'http://127.0.0.1:3000'],
       credentials: true,
       methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
@@ -121,11 +125,29 @@ class App {
     this.app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
     // 静态文件服务
-    this.app.use(express.static(path.join(__dirname, '../public')));
+    const publicPath = path.join(__dirname, '../public');
+    const viewsPath = path.join(__dirname, '../src/views');
+
+    // 检查路径是否存在，如果不存在则使用备用路径
+    const fs = require('fs');
+    let actualPublicPath = publicPath;
+    let actualViewsPath = viewsPath;
+
+    if (!fs.existsSync(publicPath)) {
+      // Vercel环境可能的路径
+      actualPublicPath = path.join(process.cwd(), 'public');
+    }
+
+    if (!fs.existsSync(viewsPath)) {
+      // Vercel环境可能的路径
+      actualViewsPath = path.join(process.cwd(), 'src/views');
+    }
+
+    this.app.use(express.static(actualPublicPath));
 
     // 设置视图引擎
     this.app.set('view engine', 'ejs');
-    this.app.set('views', path.join(__dirname, '../src/views'));
+    this.app.set('views', actualViewsPath);
   }
 
   private initializeRoutes(): void {
@@ -245,8 +267,13 @@ class App {
 // 创建应用实例
 const appInstance = new App();
 
+// 全局初始化标志
+let isInitialized = false;
+
 // 初始化应用（用于Vercel）
 async function initializeApp() {
+  if (isInitialized) return;
+
   try {
     // 连接数据库
     await database.connect();
@@ -257,6 +284,7 @@ async function initializeApp() {
     // 创建默认管理员账户
     await AuthService.createDefaultAdmin();
 
+    isInitialized = true;
     console.log('🚀 应用初始化成功!');
     console.log(`   环境: ${config.NODE_ENV}`);
     console.log('📊 数趣算账系统已就绪');
@@ -266,8 +294,11 @@ async function initializeApp() {
   }
 }
 
-// 如果不是在Vercel环境中，则启动服务器
-if (process.env.VERCEL !== '1') {
+// 检测是否在Vercel环境
+const isVercel = process.env.VERCEL === '1' || process.env.VERCEL_ENV;
+
+if (!isVercel) {
+  // 本地开发环境：启动服务器
   appInstance.start().catch(console.error);
 
   // 优雅关闭
@@ -282,10 +313,16 @@ if (process.env.VERCEL !== '1') {
     await database.disconnect();
     process.exit(0);
   });
-} else {
-  // Vercel环境：初始化应用但不启动服务器
-  initializeApp().catch(console.error);
 }
 
-// 导出Express应用实例（用于Vercel）
-export default appInstance.app;
+// 为Vercel导出处理函数
+const handler = async (req: any, res: any) => {
+  // 确保应用已初始化
+  await initializeApp();
+
+  // 使用Express应用处理请求
+  return appInstance.app(req, res);
+};
+
+// 导出Express应用实例和处理函数
+export default isVercel ? handler : appInstance.app;
