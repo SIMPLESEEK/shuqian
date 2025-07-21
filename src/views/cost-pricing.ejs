@@ -1,0 +1,737 @@
+<div class="container-fluid">
+    <!-- 页面标题 -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="h3 mb-0">成本报价管理</h1>
+            <p class="text-muted">管理产品成本信息和报价数据</p>
+        </div>
+        <div class="d-flex gap-2">
+            <button class="btn btn-outline-primary" onclick="exportData()">
+                <i class="bi bi-download"></i> 导出数据
+            </button>
+            <button class="btn btn-primary" onclick="refreshData()">
+                <i class="bi bi-arrow-clockwise"></i> 刷新数据
+            </button>
+        </div>
+    </div>
+
+    <!-- 搜索和筛选 -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <form method="GET" action="/cost-pricing" class="row g-3">
+                <div class="col-md-4">
+                    <label for="search" class="form-label">搜索产品</label>
+                    <input type="text" class="form-control" id="search" name="search" 
+                           value="<%= currentSearch %>" placeholder="产品型号或品牌">
+                </div>
+                <div class="col-md-3">
+                    <label for="category" class="form-label">产品类型</label>
+                    <select class="form-select" id="category" name="category">
+                        <option value="">全部类型</option>
+                        <% categories.forEach(cat => { %>
+                        <option value="<%= cat %>" <%= currentCategory === cat ? 'selected' : '' %>><%= cat %></option>
+                        <% }); %>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">&nbsp;</label>
+                    <div class="d-grid">
+                        <button type="submit" class="btn btn-outline-primary">
+                            <i class="bi bi-search"></i> 搜索
+                        </button>
+                    </div>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">&nbsp;</label>
+                    <div class="d-grid">
+                        <a href="/cost-pricing" class="btn btn-outline-secondary">
+                            <i class="bi bi-arrow-clockwise"></i> 重置
+                        </a>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- 产品列表 -->
+    <div class="card">
+        <div class="card-header">
+            <h5 class="card-title mb-0">产品成本报价列表</h5>
+        </div>
+        <div class="card-body">
+            <% if (error) { %>
+            <div class="alert alert-danger" role="alert">
+                <i class="bi bi-exclamation-triangle"></i> <%= error %>
+            </div>
+            <% } %>
+
+            <% if (products && products.length > 0) { %>
+            <div class="table-responsive">
+                <table class="table table-hover table-sm">
+                    <thead>
+                        <tr>
+                            <th style="min-width: 120px;">产品型号</th>
+                            <th style="min-width: 100px;">单价</th>
+                            <th style="min-width: 140px;">机身1<br><small class="text-muted">供应商/成本</small></th>
+                            <th style="min-width: 140px;">机身2<br><small class="text-muted">供应商/成本</small></th>
+                            <th style="min-width: 140px;">LED<br><small class="text-muted">供应商/成本</small></th>
+                            <th style="min-width: 140px;">驱动<br><small class="text-muted">供应商/成本</small></th>
+                            <th style="min-width: 140px;">组装<br><small class="text-muted">供应商/成本</small></th>
+                            <th style="min-width: 140px;">其他<br><small class="text-muted">供应商/成本</small></th>
+                            <th style="min-width: 140px;">ODM<br><small class="text-muted">供应商/成本</small></th>
+                            <th style="min-width: 100px;">总成本</th>
+                            <th style="min-width: 100px;">毛利率</th>
+                            <th style="min-width: 200px;">成本备注</th>
+                            <th style="min-width: 80px;">操作</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <% products.forEach(product => { %>
+                        <tr data-product-id="<%= product._id %>">
+                            <td>
+                                <strong><%= product.originalData.model || '未命名' %></strong>
+                                <br><small class="text-muted"><%= product.originalData.brand || '' %></small>
+                                <br><span class="badge bg-secondary"><%= product.category %></span>
+                            </td>
+                            <td>
+                                <div class="editable-field" data-field="unitPrice" data-type="number">
+                                    ¥<span class="value"><%= (product.originalData.pricing?.unitPrice || 0).toFixed(2) %></span>
+                                    <i class="bi bi-pencil-square edit-icon"></i>
+                                </div>
+                            </td>
+                            <td>
+                                <div class="vendor-cost-cell">
+                                    <div class="editable-field" data-field="vendorBody1" data-type="text">
+                                        <span class="value text-primary"><%= product.originalData.vendorBody1 || '' %></span>
+                                        <i class="bi bi-pencil-square edit-icon"></i>
+                                    </div>
+                                    <div class="editable-field" data-field="costBody1" data-type="number">
+                                        ¥<span class="value"><%= (product.originalData.costBody1 || 0).toFixed(2) %></span>
+                                        <i class="bi bi-pencil-square edit-icon"></i>
+                                    </div>
+                                </div>
+                            </td>
+                            <td>
+                                <div class="vendor-cost-cell">
+                                    <div class="editable-field" data-field="vendorBody2" data-type="text">
+                                        <span class="value text-primary"><%= product.originalData.vendorBody2 || '' %></span>
+                                        <i class="bi bi-pencil-square edit-icon"></i>
+                                    </div>
+                                    <div class="editable-field" data-field="costBody2" data-type="number">
+                                        ¥<span class="value"><%= (product.originalData.costBody2 || 0).toFixed(2) %></span>
+                                        <i class="bi bi-pencil-square edit-icon"></i>
+                                    </div>
+                                </div>
+                            </td>
+                            <td>
+                                <div class="vendor-cost-cell">
+                                    <div class="editable-field" data-field="vendorLED" data-type="text">
+                                        <span class="value text-primary"><%= product.originalData.vendorLED || '' %></span>
+                                        <i class="bi bi-pencil-square edit-icon"></i>
+                                    </div>
+                                    <div class="editable-field" data-field="costLED" data-type="number">
+                                        ¥<span class="value"><%= (product.originalData.costLED || 0).toFixed(2) %></span>
+                                        <i class="bi bi-pencil-square edit-icon"></i>
+                                    </div>
+                                </div>
+                            </td>
+                            <td>
+                                <div class="vendor-cost-cell">
+                                    <div class="editable-field" data-field="vendorDriver" data-type="text">
+                                        <span class="value text-primary"><%= product.originalData.vendorDriver || '' %></span>
+                                        <i class="bi bi-pencil-square edit-icon"></i>
+                                    </div>
+                                    <div class="editable-field" data-field="costDriver" data-type="number">
+                                        ¥<span class="value"><%= (product.originalData.costDriver || 0).toFixed(2) %></span>
+                                        <i class="bi bi-pencil-square edit-icon"></i>
+                                    </div>
+                                </div>
+                            </td>
+                            <td>
+                                <div class="vendor-cost-cell">
+                                    <div class="editable-field" data-field="vendorAssemble" data-type="text">
+                                        <span class="value text-primary"><%= product.originalData.vendorAssemble || '' %></span>
+                                        <i class="bi bi-pencil-square edit-icon"></i>
+                                    </div>
+                                    <div class="editable-field" data-field="costAssemble" data-type="number">
+                                        ¥<span class="value"><%= (product.originalData.costAssemble || 0).toFixed(2) %></span>
+                                        <i class="bi bi-pencil-square edit-icon"></i>
+                                    </div>
+                                </div>
+                            </td>
+                            <td>
+                                <div class="vendor-cost-cell">
+                                    <div class="editable-field" data-field="vendorOther" data-type="text">
+                                        <span class="value text-primary"><%= product.originalData.vendorOther || '' %></span>
+                                        <i class="bi bi-pencil-square edit-icon"></i>
+                                    </div>
+                                    <div class="editable-field" data-field="costOther" data-type="number">
+                                        ¥<span class="value"><%= (product.originalData.costOther || 0).toFixed(2) %></span>
+                                        <i class="bi bi-pencil-square edit-icon"></i>
+                                    </div>
+                                </div>
+                            </td>
+                            <td>
+                                <div class="vendor-cost-cell">
+                                    <div class="editable-field" data-field="vendorODM" data-type="text">
+                                        <span class="value text-primary"><%= product.originalData.vendorODM || '' %></span>
+                                        <i class="bi bi-pencil-square edit-icon"></i>
+                                    </div>
+                                    <div class="editable-field" data-field="costODM" data-type="number">
+                                        ¥<span class="value"><%= (product.originalData.costODM || 0).toFixed(2) %></span>
+                                        <i class="bi bi-pencil-square edit-icon"></i>
+                                    </div>
+                                </div>
+                            </td>
+                            <td>
+                                <strong class="total-cost">¥<%= product.costAnalysis.total.toFixed(2) %></strong>
+                            </td>
+                            <td>
+                                <span class="profit-margin <%= product.priceAnalysis.profitMargin > 0 ? 'profit-positive' : (product.priceAnalysis.profitMargin < 0 ? 'profit-negative' : 'profit-neutral') %>">
+                                    <%= product.priceAnalysis.profitMargin.toFixed(2) %>%
+                                </span>
+                            </td>
+                            <td>
+                                <div class="editable-field" data-field="costNote" data-type="textarea">
+                                    <span class="value"><%= product.originalData.costNote || '' %></span>
+                                    <i class="bi bi-pencil-square edit-icon"></i>
+                                </div>
+                            </td>
+                            <td>
+                                <div class="btn-group-vertical btn-group-sm">
+                                    <button type="button" class="btn btn-outline-success btn-sm" onclick="saveProduct('<%= product._id %>')">
+                                        <i class="bi bi-check"></i>
+                                    </button>
+                                    <button type="button" class="btn btn-outline-secondary btn-sm" onclick="resetProduct('<%= product._id %>')">
+                                        <i class="bi bi-arrow-clockwise"></i>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                        <% }); %>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- 分页 -->
+            <% if (pagination && pagination.pages > 1) { %>
+            <nav aria-label="产品分页">
+                <ul class="pagination justify-content-center">
+                    <% if (pagination.current > 1) { %>
+                    <li class="page-item">
+                        <a class="page-link" href="?page=<%= pagination.current - 1 %>&search=<%= currentSearch %>&category=<%= currentCategory %>">上一页</a>
+                    </li>
+                    <% } %>
+                    
+                    <% for (let i = Math.max(1, pagination.current - 2); i <= Math.min(pagination.pages, pagination.current + 2); i++) { %>
+                    <li class="page-item <%= i === pagination.current ? 'active' : '' %>">
+                        <a class="page-link" href="?page=<%= i %>&search=<%= currentSearch %>&category=<%= currentCategory %>"><%= i %></a>
+                    </li>
+                    <% } %>
+                    
+                    <% if (pagination.current < pagination.pages) { %>
+                    <li class="page-item">
+                        <a class="page-link" href="?page=<%= pagination.current + 1 %>&search=<%= currentSearch %>&category=<%= currentCategory %>">下一页</a>
+                    </li>
+                    <% } %>
+                </ul>
+            </nav>
+            <% } %>
+            <% } else { %>
+            <div class="text-center py-5">
+                <i class="bi bi-box-seam display-1 text-muted"></i>
+                <h5 class="mt-3">暂无产品数据</h5>
+                <p class="text-muted">请检查搜索条件或联系管理员</p>
+            </div>
+            <% } %>
+        </div>
+    </div>
+</div>
+
+<!-- 确认对话框模态框 -->
+<div class="modal fade" id="confirmModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">确认修改</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-warning">
+                    <i class="bi bi-exclamation-triangle"></i>
+                    <strong>注意：</strong>您正在修改已有数据，此操作不可撤销。
+                </div>
+                <p>确定要保存以下修改吗？</p>
+                <div id="changesList"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                <button type="button" class="btn btn-danger" id="confirmSave">确认保存</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.vendor-cost-cell {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.editable-field {
+    position: relative;
+    cursor: pointer;
+    padding: 2px 4px;
+    border-radius: 3px;
+    transition: background-color 0.2s;
+}
+
+.editable-field:hover {
+    background-color: #f8f9fa;
+}
+
+.editable-field .edit-icon {
+    display: none;
+    position: absolute;
+    right: 2px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 0.8em;
+    color: #6c757d;
+}
+
+.editable-field:hover .edit-icon {
+    display: inline;
+}
+
+.editable-field.editing {
+    background-color: #fff3cd;
+    border: 1px solid #ffeaa7;
+}
+
+.editable-field input,
+.editable-field textarea {
+    border: none;
+    background: transparent;
+    width: 100%;
+    font-size: inherit;
+    padding: 0;
+    margin: 0;
+}
+
+.editable-field input:focus,
+.editable-field textarea:focus {
+    outline: none;
+    box-shadow: none;
+}
+
+.table-sm td {
+    padding: 0.3rem;
+    vertical-align: middle;
+}
+
+.profit-positive {
+    color: #28a745;
+    font-weight: bold;
+}
+
+.profit-negative {
+    color: #dc3545;
+    font-weight: bold;
+}
+
+.profit-neutral {
+    color: #ffc107;
+    font-weight: bold;
+}
+
+.changed-field {
+    background-color: #d4edda !important;
+    border: 1px solid #c3e6cb !important;
+}
+</style>
+
+<script>
+// 存储原始数据和修改数据
+let originalData = {};
+let changedData = {};
+
+// 页面加载完成后初始化
+document.addEventListener('DOMContentLoaded', function() {
+    initializeEditableFields();
+    storeOriginalData();
+});
+
+// 初始化可编辑字段
+function initializeEditableFields() {
+    document.querySelectorAll('.editable-field').forEach(field => {
+        field.addEventListener('click', function() {
+            if (!this.classList.contains('editing')) {
+                makeFieldEditable(this);
+            }
+        });
+    });
+}
+
+// 存储原始数据
+function storeOriginalData() {
+    document.querySelectorAll('tr[data-product-id]').forEach(row => {
+        const productId = row.getAttribute('data-product-id');
+        originalData[productId] = {};
+
+        row.querySelectorAll('.editable-field').forEach(field => {
+            const fieldName = field.getAttribute('data-field');
+            const value = field.querySelector('.value').textContent.trim();
+            originalData[productId][fieldName] = value;
+        });
+    });
+}
+
+// 使字段可编辑
+function makeFieldEditable(field) {
+    const fieldType = field.getAttribute('data-type');
+    const currentValue = field.querySelector('.value').textContent.trim();
+    const cleanValue = fieldType === 'number' ? currentValue.replace(/[¥,]/g, '') : currentValue;
+
+    field.classList.add('editing');
+
+    let input;
+    if (fieldType === 'textarea') {
+        input = document.createElement('textarea');
+        input.rows = 2;
+    } else {
+        input = document.createElement('input');
+        input.type = fieldType === 'number' ? 'number' : 'text';
+        if (fieldType === 'number') {
+            input.step = '0.01';
+            input.min = '0';
+        }
+    }
+
+    input.value = cleanValue;
+    input.className = 'form-control form-control-sm';
+
+    // 替换内容
+    field.innerHTML = '';
+    field.appendChild(input);
+    input.focus();
+    input.select();
+
+    // 处理失去焦点和回车事件
+    input.addEventListener('blur', () => finishEditing(field, input));
+    input.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' && fieldType !== 'textarea') {
+            finishEditing(field, input);
+        } else if (e.key === 'Escape') {
+            cancelEditing(field);
+        }
+    });
+}
+
+// 完成编辑
+function finishEditing(field, input) {
+    const fieldType = field.getAttribute('data-type');
+    const newValue = input.value.trim();
+    const productId = field.closest('tr').getAttribute('data-product-id');
+    const fieldName = field.getAttribute('data-field');
+
+    // 恢复显示格式
+    field.classList.remove('editing');
+    let displayValue = newValue;
+    if (fieldType === 'number' && newValue) {
+        displayValue = fieldType === 'number' && fieldName.includes('cost') || fieldName === 'unitPrice'
+            ? '¥' + parseFloat(newValue).toFixed(2)
+            : newValue;
+    }
+
+    field.innerHTML = `<span class="value">${displayValue}</span><i class="bi bi-pencil-square edit-icon"></i>`;
+
+    // 检查是否有变化
+    const originalValue = originalData[productId][fieldName];
+    if (newValue !== originalValue.replace(/[¥,]/g, '')) {
+        field.classList.add('changed-field');
+
+        // 记录变化
+        if (!changedData[productId]) {
+            changedData[productId] = {};
+        }
+        changedData[productId][fieldName] = newValue;
+
+        // 如果是成本字段，重新计算总成本和毛利率
+        if (fieldName.includes('cost') || fieldName === 'unitPrice') {
+            updateCalculatedFields(productId);
+        }
+    } else {
+        field.classList.remove('changed-field');
+
+        // 移除变化记录
+        if (changedData[productId]) {
+            delete changedData[productId][fieldName];
+            if (Object.keys(changedData[productId]).length === 0) {
+                delete changedData[productId];
+            }
+        }
+    }
+}
+
+// 取消编辑
+function cancelEditing(field) {
+    const productId = field.closest('tr').getAttribute('data-product-id');
+    const fieldName = field.getAttribute('data-field');
+    const originalValue = originalData[productId][fieldName];
+
+    field.classList.remove('editing');
+    field.innerHTML = `<span class="value">${originalValue}</span><i class="bi bi-pencil-square edit-icon"></i>`;
+}
+
+// 更新计算字段（总成本和毛利率）
+function updateCalculatedFields(productId) {
+    const row = document.querySelector(`tr[data-product-id="${productId}"]`);
+
+    // 获取所有成本值
+    const costs = {
+        body1: getFieldValue(row, 'costBody1'),
+        body2: getFieldValue(row, 'costBody2'),
+        led: getFieldValue(row, 'costLED'),
+        driver: getFieldValue(row, 'costDriver'),
+        assemble: getFieldValue(row, 'costAssemble'),
+        other: getFieldValue(row, 'costOther'),
+        odm: getFieldValue(row, 'costODM')
+    };
+
+    const unitPrice = getFieldValue(row, 'unitPrice');
+
+    // 计算总成本
+    let totalCost;
+    if (costs.odm > 0) {
+        // 算法2：ODM模式
+        totalCost = costs.odm;
+    } else {
+        // 算法1：组装模式
+        totalCost = costs.body1 + costs.body2 + costs.led + costs.driver + costs.assemble + costs.other;
+    }
+
+    // 更新总成本显示
+    const totalCostElement = row.querySelector('.total-cost');
+    totalCostElement.textContent = `¥${totalCost.toFixed(2)}`;
+
+    // 计算毛利率
+    const grossMargin = totalCost > 0 ? ((unitPrice - totalCost) / unitPrice) * 100 : 0;
+
+    // 更新毛利率显示
+    const marginElement = row.querySelector('.profit-margin');
+    marginElement.textContent = `${grossMargin.toFixed(2)}%`;
+    marginElement.className = `profit-margin ${grossMargin > 0 ? 'profit-positive' : (grossMargin < 0 ? 'profit-negative' : 'profit-neutral')}`;
+}
+
+// 获取字段值
+function getFieldValue(row, fieldName) {
+    const field = row.querySelector(`[data-field="${fieldName}"] .value`);
+    if (!field) return 0;
+
+    const value = field.textContent.trim().replace(/[¥,]/g, '');
+    return parseFloat(value) || 0;
+}
+
+// 保存产品数据
+async function saveProduct(productId) {
+    if (!changedData[productId]) {
+        showAlert('没有需要保存的修改', 'info');
+        return;
+    }
+
+    // 检查是否有原始数据需要确认
+    const hasOriginalData = Object.keys(changedData[productId]).some(field => {
+        const originalValue = originalData[productId][field];
+        return originalValue && originalValue.trim() !== '' && originalValue !== '¥0.00';
+    });
+
+    if (hasOriginalData) {
+        showConfirmDialog(productId);
+    } else {
+        await performSave(productId);
+    }
+}
+
+// 显示确认对话框
+function showConfirmDialog(productId) {
+    const changes = changedData[productId];
+    const changesList = document.getElementById('changesList');
+
+    let html = '<ul class="list-unstyled">';
+    Object.keys(changes).forEach(field => {
+        const originalValue = originalData[productId][field];
+        const newValue = changes[field];
+        const fieldLabel = getFieldLabel(field);
+
+        html += `<li><strong>${fieldLabel}:</strong> "${originalValue}" → "${newValue}"</li>`;
+    });
+    html += '</ul>';
+
+    changesList.innerHTML = html;
+
+    // 设置确认按钮事件
+    document.getElementById('confirmSave').onclick = () => {
+        const modal = bootstrap.Modal.getInstance(document.getElementById('confirmModal'));
+        modal.hide();
+        performSave(productId);
+    };
+
+    // 显示模态框
+    const modal = new bootstrap.Modal(document.getElementById('confirmModal'));
+    modal.show();
+}
+
+// 执行保存
+async function performSave(productId) {
+    const changes = changedData[productId];
+
+    try {
+        showLoading(true);
+
+        // 分离成本和价格数据
+        const costData = {};
+        const pricingData = {};
+
+        Object.keys(changes).forEach(field => {
+            if (field === 'unitPrice') {
+                pricingData.unitPrice = parseFloat(changes[field]);
+            } else if (field === 'costNote') {
+                costData.costNote = changes[field];
+            } else if (field.startsWith('cost') || field.startsWith('vendor')) {
+                const key = field.replace(/^(cost|vendor)/, '').toLowerCase();
+                if (!costData[key]) costData[key] = {};
+
+                if (field.startsWith('cost')) {
+                    costData[key].cost = parseFloat(changes[field]);
+                } else {
+                    costData[key].vendor = changes[field];
+                }
+            }
+        });
+
+        // 保存成本数据
+        if (Object.keys(costData).length > 0) {
+            const response = await fetch(`/api/cost-pricing/${productId}/costs`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(costData)
+            });
+
+            if (!response.ok) {
+                throw new Error('保存成本数据失败');
+            }
+        }
+
+        // 保存价格数据
+        if (Object.keys(pricingData).length > 0) {
+            const response = await fetch(`/api/cost-pricing/${productId}/pricing`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(pricingData)
+            });
+
+            if (!response.ok) {
+                throw new Error('保存价格数据失败');
+            }
+        }
+
+        // 清除变化标记
+        const row = document.querySelector(`tr[data-product-id="${productId}"]`);
+        row.querySelectorAll('.changed-field').forEach(field => {
+            field.classList.remove('changed-field');
+        });
+
+        // 更新原始数据
+        Object.keys(changes).forEach(field => {
+            originalData[productId][field] = changes[field];
+        });
+
+        // 清除变化记录
+        delete changedData[productId];
+
+        showAlert('保存成功！', 'success');
+
+    } catch (error) {
+        console.error('保存失败:', error);
+        showAlert('保存失败：' + error.message, 'danger');
+    } finally {
+        showLoading(false);
+    }
+}
+
+// 重置产品数据
+function resetProduct(productId) {
+    if (!changedData[productId]) {
+        showAlert('没有需要重置的修改', 'info');
+        return;
+    }
+
+    const row = document.querySelector(`tr[data-product-id="${productId}"]`);
+
+    // 恢复所有修改的字段
+    Object.keys(changedData[productId]).forEach(fieldName => {
+        const field = row.querySelector(`[data-field="${fieldName}"]`);
+        const originalValue = originalData[productId][fieldName];
+
+        field.querySelector('.value').textContent = originalValue;
+        field.classList.remove('changed-field');
+    });
+
+    // 重新计算总成本和毛利率
+    updateCalculatedFields(productId);
+
+    // 清除变化记录
+    delete changedData[productId];
+
+    showAlert('已重置修改', 'info');
+}
+
+// 获取字段标签
+function getFieldLabel(field) {
+    const labels = {
+        'unitPrice': '单价',
+        'vendorBody1': '机身1供应商',
+        'costBody1': '机身1成本',
+        'vendorBody2': '机身2供应商',
+        'costBody2': '机身2成本',
+        'vendorLED': 'LED供应商',
+        'costLED': 'LED成本',
+        'vendorDriver': '驱动供应商',
+        'costDriver': '驱动成本',
+        'vendorAssemble': '组装供应商',
+        'costAssemble': '组装成本',
+        'vendorOther': '其他供应商',
+        'costOther': '其他成本',
+        'vendorODM': 'ODM供应商',
+        'costODM': 'ODM成本',
+        'costNote': '成本备注'
+    };
+    return labels[field] || field;
+}
+
+// 刷新数据
+function refreshData() {
+    window.location.reload();
+}
+
+// 导出数据
+function exportData() {
+    showAlert('导出功能开发中...', 'info');
+}
+
+// 显示加载状态
+function showLoading(show) {
+    // 可以添加加载指示器
+    if (show) {
+        document.body.style.cursor = 'wait';
+    } else {
+        document.body.style.cursor = 'default';
+    }
+}
+</script>

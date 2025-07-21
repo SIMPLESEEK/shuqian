@@ -1,0 +1,311 @@
+<div class="container-fluid">
+    <!-- 页面标题 -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="h3 mb-0">报价管理</h1>
+            <p class="text-muted">管理产品报价和利润分析</p>
+        </div>
+        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addQuotationModal">
+            <i class="bi bi-plus-circle"></i> 创建报价
+        </button>
+    </div>
+
+    <!-- 搜索和筛选 -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <form method="GET" action="/quotations" class="row g-3">
+                <div class="col-md-3">
+                    <label for="productId" class="form-label">选择产品</label>
+                    <select class="form-select" id="productId" name="productId">
+                        <option value="">全部产品</option>
+                        <% products.forEach(product => { %>
+                        <option value="<%= product._id %>" <%= currentProductId === product._id.toString() ? 'selected' : '' %>>
+                            <%= product.name %> (<%= product.code %>)
+                        </option>
+                        <% }); %>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label for="customerType" class="form-label">客户类型</label>
+                    <select class="form-select" id="customerType" name="customerType">
+                        <option value="">全部类型</option>
+                        <% customerTypes.forEach(type => { %>
+                        <option value="<%= type %>" <%= currentCustomerType === type ? 'selected' : '' %>><%= type %></option>
+                        <% }); %>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label for="validOnly" class="form-label">报价状态</label>
+                    <select class="form-select" id="validOnly" name="validOnly">
+                        <option value="false" <%= !currentValidOnly ? 'selected' : '' %>>全部报价</option>
+                        <option value="true" <%= currentValidOnly ? 'selected' : '' %>>仅有效报价</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">&nbsp;</label>
+                    <div class="d-grid">
+                        <button type="submit" class="btn btn-outline-primary">
+                            <i class="bi bi-search"></i> 搜索
+                        </button>
+                    </div>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">&nbsp;</label>
+                    <div class="d-grid">
+                        <a href="/quotations" class="btn btn-outline-secondary">
+                            <i class="bi bi-arrow-clockwise"></i> 重置
+                        </a>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- 报价列表 -->
+    <div class="card">
+        <div class="card-header">
+            <h5 class="card-title mb-0">报价列表</h5>
+        </div>
+        <div class="card-body">
+            <% if (error) { %>
+            <div class="alert alert-danger" role="alert">
+                <i class="bi bi-exclamation-triangle"></i> <%= error %>
+            </div>
+            <% } %>
+
+            <% if (quotations && quotations.length > 0) { %>
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>产品信息</th>
+                            <th>客户类型</th>
+                            <th>销售价格</th>
+                            <th>利润率</th>
+                            <th>有效期</th>
+                            <th>状态</th>
+                            <th>创建时间</th>
+                            <th>操作</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <% quotations.forEach(quotation => { 
+                            const isExpired = new Date(quotation.validUntil) < new Date();
+                            const daysLeft = Math.ceil((new Date(quotation.validUntil) - new Date()) / (1000 * 60 * 60 * 24));
+                        %>
+                        <tr>
+                            <td>
+                                <div>
+                                    <strong><%= quotation.productName %></strong>
+                                    <br>
+                                    <small class="text-muted"><%= quotation.productCode %></small>
+                                </div>
+                            </td>
+                            <td>
+                                <% if (quotation.customerType) { %>
+                                <span class="badge bg-info"><%= quotation.customerType %></span>
+                                <% } else { %>
+                                <span class="text-muted">-</span>
+                                <% } %>
+                            </td>
+                            <td>¥<%= quotation.sellingPrice.toFixed(2) %></td>
+                            <td>
+                                <span class="<%= quotation.profitMargin >= 20 ? 'profit-positive' : quotation.profitMargin >= 10 ? 'profit-neutral' : 'profit-negative' %>">
+                                    <%= quotation.profitMargin.toFixed(1) %>%
+                                </span>
+                            </td>
+                            <td><%= new Date(quotation.validUntil).toLocaleDateString('zh-CN') %></td>
+                            <td>
+                                <% if (isExpired) { %>
+                                <span class="badge bg-danger">已过期</span>
+                                <% } else if (daysLeft <= 1) { %>
+                                <span class="badge bg-warning">即将过期</span>
+                                <% } else { %>
+                                <span class="badge bg-success">有效</span>
+                                <% } %>
+                            </td>
+                            <td><%= new Date(quotation.createdAt).toLocaleDateString('zh-CN') %></td>
+                            <td>
+                                <div class="btn-group btn-group-sm" role="group">
+                                    <button type="button" class="btn btn-outline-primary" 
+                                            onclick="editQuotation('<%= quotation._id %>')">
+                                        <i class="bi bi-pencil"></i>
+                                    </button>
+                                    <button type="button" class="btn btn-outline-danger" 
+                                            onclick="deleteQuotation('<%= quotation._id %>', '<%= quotation.productName %>')">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                        <% }); %>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- 分页 -->
+            <% if (pagination && pagination.totalPages > 1) { %>
+            <nav aria-label="报价分页">
+                <ul class="pagination justify-content-center">
+                    <% if (pagination.currentPage > 1) { %>
+                    <li class="page-item">
+                        <a class="page-link" href="?page=<%= pagination.currentPage - 1 %>&productId=<%= currentProductId %>&customerType=<%= currentCustomerType %>&validOnly=<%= currentValidOnly %>">上一页</a>
+                    </li>
+                    <% } %>
+                    
+                    <% for (let i = Math.max(1, pagination.currentPage - 2); i <= Math.min(pagination.totalPages, pagination.currentPage + 2); i++) { %>
+                    <li class="page-item <%= i === pagination.currentPage ? 'active' : '' %>">
+                        <a class="page-link" href="?page=<%= i %>&productId=<%= currentProductId %>&customerType=<%= currentCustomerType %>&validOnly=<%= currentValidOnly %>"><%= i %></a>
+                    </li>
+                    <% } %>
+                    
+                    <% if (pagination.currentPage < pagination.totalPages) { %>
+                    <li class="page-item">
+                        <a class="page-link" href="?page=<%= pagination.currentPage + 1 %>&productId=<%= currentProductId %>&customerType=<%= currentCustomerType %>&validOnly=<%= currentValidOnly %>">下一页</a>
+                    </li>
+                    <% } %>
+                </ul>
+            </nav>
+            <% } %>
+            <% } else { %>
+            <div class="text-center py-5">
+                <i class="bi bi-file-earmark-text display-1 text-muted"></i>
+                <h5 class="mt-3">暂无报价数据</h5>
+                <p class="text-muted">点击上方"创建报价"按钮开始创建报价</p>
+            </div>
+            <% } %>
+        </div>
+    </div>
+</div>
+
+<!-- 创建报价模态框 -->
+<div class="modal fade" id="addQuotationModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">创建报价</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="addQuotationForm">
+                    <div class="mb-3">
+                        <label for="quotationProductId" class="form-label">选择产品 *</label>
+                        <select class="form-select" id="quotationProductId" name="productId" required>
+                            <option value="">请选择产品</option>
+                            <% products.forEach(product => { %>
+                            <option value="<%= product._id %>"><%= product.name %> (<%= product.code %>)</option>
+                            <% }); %>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="quotationCostInfoId" class="form-label">成本信息 *</label>
+                        <select class="form-select" id="quotationCostInfoId" name="costInfoId" required>
+                            <option value="">请先选择产品</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="quotationSellingPrice" class="form-label">销售价格 *</label>
+                        <input type="number" class="form-control" id="quotationSellingPrice" name="sellingPrice" 
+                               step="0.01" min="0" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="quotationCustomerType" class="form-label">客户类型</label>
+                        <select class="form-select" id="quotationCustomerType" name="customerType">
+                            <option value="">请选择客户类型</option>
+                            <% customerTypes.forEach(type => { %>
+                            <option value="<%= type %>"><%= type %></option>
+                            <% }); %>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="quotationValidUntil" class="form-label">有效期 *</label>
+                        <input type="date" class="form-control" id="quotationValidUntil" name="validUntil" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="quotationNotes" class="form-label">备注</label>
+                        <textarea class="form-control" id="quotationNotes" name="notes" rows="3"></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                <button type="button" class="btn btn-primary" onclick="saveQuotation()">保存</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.profit-positive { color: #198754; font-weight: bold; }
+.profit-neutral { color: #fd7e14; font-weight: bold; }
+.profit-negative { color: #dc3545; font-weight: bold; }
+</style>
+
+<script>
+// 保存报价
+async function saveQuotation() {
+    const form = document.getElementById('addQuotationForm');
+    const formData = new FormData(form);
+    const data = Object.fromEntries(formData);
+
+    try {
+        const response = await fetch('/api/quotations', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(data)
+        });
+
+        const result = await response.json();
+        
+        if (result.success) {
+            alert('报价创建成功！');
+            location.reload();
+        } else {
+            alert('创建失败：' + result.message);
+        }
+    } catch (error) {
+        console.error('创建报价失败:', error);
+        alert('创建报价失败，请重试');
+    }
+}
+
+// 编辑报价
+function editQuotation(id) {
+    alert('编辑功能开发中...');
+}
+
+// 删除报价
+async function deleteQuotation(id, productName) {
+    if (!confirm(`确定要删除产品"${productName}"的报价吗？`)) {
+        return;
+    }
+
+    try {
+        const response = await fetch(`/api/quotations/${id}`, {
+            method: 'DELETE'
+        });
+
+        const result = await response.json();
+        
+        if (result.success) {
+            alert('报价删除成功！');
+            location.reload();
+        } else {
+            alert('删除失败：' + result.message);
+        }
+    } catch (error) {
+        console.error('删除报价失败:', error);
+        alert('删除报价失败，请重试');
+    }
+}
+
+// 设置默认有效期（30天后）
+document.addEventListener('DOMContentLoaded', function() {
+    const validUntilInput = document.getElementById('quotationValidUntil');
+    const defaultDate = new Date();
+    defaultDate.setDate(defaultDate.getDate() + 30);
+    validUntilInput.value = defaultDate.toISOString().split('T')[0];
+});
+</script>
