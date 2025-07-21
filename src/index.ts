@@ -242,21 +242,50 @@ class App {
   }
 }
 
-// 启动应用
-const app = new App();
-app.start().catch(console.error);
+// 创建应用实例
+const appInstance = new App();
 
-// 优雅关闭
-process.on('SIGTERM', async () => {
-  console.log('收到SIGTERM信号，正在优雅关闭...');
-  await database.disconnect();
-  process.exit(0);
-});
+// 初始化应用（用于Vercel）
+async function initializeApp() {
+  try {
+    // 连接数据库
+    await database.connect();
 
-process.on('SIGINT', async () => {
-  console.log('收到SIGINT信号，正在优雅关闭...');
-  await database.disconnect();
-  process.exit(0);
-});
+    // 初始化模型
+    await initializeModels();
 
-export default app;
+    // 创建默认管理员账户
+    await AuthService.createDefaultAdmin();
+
+    console.log('🚀 应用初始化成功!');
+    console.log(`   环境: ${config.NODE_ENV}`);
+    console.log('📊 数趣算账系统已就绪');
+  } catch (error) {
+    console.error('❌ 应用初始化失败:', error);
+    throw error;
+  }
+}
+
+// 如果不是在Vercel环境中，则启动服务器
+if (process.env.VERCEL !== '1') {
+  appInstance.start().catch(console.error);
+
+  // 优雅关闭
+  process.on('SIGTERM', async () => {
+    console.log('收到SIGTERM信号，正在优雅关闭...');
+    await database.disconnect();
+    process.exit(0);
+  });
+
+  process.on('SIGINT', async () => {
+    console.log('收到SIGINT信号，正在优雅关闭...');
+    await database.disconnect();
+    process.exit(0);
+  });
+} else {
+  // Vercel环境：初始化应用但不启动服务器
+  initializeApp().catch(console.error);
+}
+
+// 导出Express应用实例（用于Vercel）
+export default appInstance.app;
