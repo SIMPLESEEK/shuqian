@@ -151,16 +151,34 @@ class App {
   }
 
   private initializeRoutes(): void {
-    // 健康检查
-    this.app.get('/health', async (_req, res) => {
-      const dbHealth = await database.healthCheck();
+    // 简单的ping端点
+    this.app.get('/ping', (_req, res) => {
       res.json({
         status: 'ok',
+        message: 'pong',
         timestamp: new Date().toISOString(),
-        uptime: process.uptime(),
-        database: dbHealth,
         environment: config.NODE_ENV
       });
+    });
+
+    // 健康检查
+    this.app.get('/health', async (_req, res) => {
+      try {
+        const dbHealth = await database.healthCheck();
+        res.json({
+          status: 'ok',
+          timestamp: new Date().toISOString(),
+          uptime: process.uptime(),
+          database: dbHealth,
+          environment: config.NODE_ENV
+        });
+      } catch (error) {
+        res.status(500).json({
+          status: 'error',
+          message: 'Health check failed',
+          error: error.message
+        });
+      }
     });
 
     // API路由 - 必须在前端路由之前
@@ -317,12 +335,36 @@ if (!isVercel) {
 
 // 为Vercel导出处理函数
 const handler = async (req: any, res: any) => {
-  // 确保应用已初始化
-  await initializeApp();
+  try {
+    console.log(`[Vercel] ${req.method} ${req.url}`);
 
-  // 使用Express应用处理请求
-  return appInstance.app(req, res);
+    // 确保应用已初始化
+    if (!isInitialized) {
+      console.log('[Vercel] Initializing app...');
+      await initializeApp();
+    }
+
+    // 使用Express应用处理请求
+    return appInstance.app(req, res);
+  } catch (error) {
+    console.error('[Vercel] Handler error:', error);
+    if (!res.headersSent) {
+      res.status(500).json({
+        error: 'Internal Server Error',
+        message: error.message
+      });
+    }
+  }
 };
 
 // 导出Express应用实例和处理函数
+if (isVercel) {
+  // CommonJS导出用于Vercel
+  module.exports = handler;
+  module.exports.default = handler;
+  // 也导出Express应用实例
+  module.exports.app = appInstance.app;
+}
+
+// ES模块导出用于本地开发
 export default isVercel ? handler : appInstance.app;
