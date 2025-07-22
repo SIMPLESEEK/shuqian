@@ -1,53 +1,58 @@
+// Vercel serverless function entry point
 const path = require('path');
 
 // 设置环境变量
 process.env.NODE_ENV = process.env.NODE_ENV || 'production';
+process.env.VERCEL = '1';
 
 // 导入编译后的应用
 const appPath = path.join(__dirname, '../dist/index.js');
 
-let app;
+let appHandler;
 let isInitialized = false;
 
 async function initializeApp() {
-  if (isInitialized) {
-    return app;
+  if (isInitialized && appHandler) {
+    return appHandler;
   }
 
   try {
-    console.log('Initializing app for Vercel...');
-    
+    console.log('[Vercel] Initializing app...');
+    console.log('[Vercel] App path:', appPath);
+
+    // 清除require缓存以确保重新加载
+    delete require.cache[require.resolve(appPath)];
+
     // 动态导入应用
     const appModule = require(appPath);
-    app = appModule.default || appModule;
-    
-    if (typeof app === 'function' && app.length === 2) {
-      // 如果是处理函数，直接使用
+    console.log('[Vercel] App module loaded, keys:', Object.keys(appModule));
+
+    // 获取处理函数
+    appHandler = appModule.default || appModule;
+
+    if (typeof appHandler === 'function') {
+      console.log('[Vercel] Handler function found');
       isInitialized = true;
-      return app;
-    } else if (app && typeof app.listen === 'function') {
-      // 如果是Express应用实例，包装成处理函数
-      const handler = (req, res) => {
-        return app(req, res);
-      };
-      isInitialized = true;
-      return handler;
+      return appHandler;
     } else {
-      throw new Error('Invalid app export');
+      console.error('[Vercel] Invalid app export type:', typeof appHandler);
+      throw new Error(`Invalid app export: expected function, got ${typeof appHandler}`);
     }
   } catch (error) {
-    console.error('Failed to initialize app:', error);
+    console.error('[Vercel] Failed to initialize app:', error);
     throw error;
   }
 }
 
 module.exports = async (req, res) => {
   try {
+    console.log(`[Vercel] ${req.method} ${req.url}`);
+
     // 设置CORS头
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
-    
+
     // 处理预检请求
     if (req.method === 'OPTIONS') {
       res.status(200).end();
@@ -56,14 +61,18 @@ module.exports = async (req, res) => {
 
     // 初始化应用
     const handler = await initializeApp();
-    
+
     // 处理请求
-    return handler(req, res);
+    console.log('[Vercel] Calling handler...');
+    return await handler(req, res);
   } catch (error) {
-    console.error('Vercel handler error:', error);
-    res.status(500).json({ 
-      error: 'Internal Server Error',
-      message: error.message 
-    });
+    console.error('[Vercel] Handler error:', error);
+    if (!res.headersSent) {
+      res.status(500).json({
+        error: 'Internal Server Error',
+        message: error.message,
+        stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+      });
+    }
   }
 };
