@@ -157,7 +157,26 @@ class App {
         status: 'ok',
         message: 'pong',
         timestamp: new Date().toISOString(),
-        environment: config.NODE_ENV
+        environment: config.NODE_ENV,
+        vercel: process.env.VERCEL === '1',
+        nodeVersion: process.version
+      });
+    });
+
+    // 诊断端点
+    this.app.get('/api/diagnostic', (_req, res) => {
+      res.json({
+        status: 'ok',
+        message: 'Diagnostic endpoint working',
+        timestamp: new Date().toISOString(),
+        environment: config.NODE_ENV,
+        vercel: process.env.VERCEL === '1',
+        nodeVersion: process.version,
+        envVars: {
+          hasMongoUri: !!process.env.MONGODB_URI,
+          hasSessionSecret: !!process.env.SESSION_SECRET,
+          hasAdminUsername: !!process.env.ADMIN_USERNAME
+        }
       });
     });
 
